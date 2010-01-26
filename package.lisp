@@ -1,5 +1,5 @@
 ;;; -*- mode: lisp; indent-tabs: nil -*-
 
 (defpackage :twitter
-  (:use :cl)
+  (:use :cl :drakma :fiveam)
   (:export #:test))
