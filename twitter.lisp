@@ -20,15 +20,15 @@
 			       (list :basic-authorization credentials)
 			       () ))))
 
-(defmacro post-http-string (url body-content &optional credentials)
+(defmacro post-http-data (url query-data &optional credentials)
   `(flexi-streams:octets-to-string
     (drakma:http-request ,url
                          :method :post
                          ,@(if credentials
                                (list :basic-authorization credentials)
                                ())
-                         ,@(if body-content
-                               (list :content body-content)
+                         ,@(if query-data
+                               (list :parameters query-data)
                                ()))))
 
 (defun get-data-from-json-url (credentials query-url)
@@ -37,7 +37,7 @@
 
 (defun post-data-to-json-url (credentials query-url &optional data-alist)
   (json:decode-json-from-string
-   (post-http-string query-url (json:encode-json-alist-to-string data-alist) credentials)))
+   (post-http-data query-url data-alist credentials)))
 
 (defun get-timeline (credentials url)
   (get-data-from-json-url url credentials))
@@ -85,7 +85,8 @@
 (defun status-post (credentials status &key in-reply-to-id lat long)
   (post-data-to-json-url credentials
                          (restful-status-url)
-                         (build-post-status-alist (status in-reply-to-id lat long))))
+                         (build-post-status-alist status in-reply-to-id lat long)))
+
 (defun status-delete (credentials status-id)
   (post-data-to-json-url credentials
                          (restful-status-url 'destroy status-id)))
