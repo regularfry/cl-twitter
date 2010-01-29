@@ -5,9 +5,7 @@
   (asdf:oos 'asdf:load-op 'cl-json))
 (make-requires)
 (defpackage :twitter
-  (:use :cl
-	:it.bese.FiveAM
-	:json))
+  (:use :cl))
 (in-package :twitter)
 
 (defun get-credentials (username password)
