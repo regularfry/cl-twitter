@@ -11,6 +11,7 @@
            :trends-current
            :trends-daily
            :trends-weekly
+           :statuses-public-timeline
            ))
 (in-package :twitter)
 
@@ -50,7 +51,7 @@
 
 (defun get-timeline (credentials url)
   (get-data-from-json-url url credentials))
-(defun get-public-timeline (&optional credentials)
+(defun statuses-public-timeline (&optional credentials)
   (get-timeline
    "http://twitter.com/statuses/public_timeline.json"
    credentials)) 
