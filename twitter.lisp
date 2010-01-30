@@ -1,22 +1,5 @@
 ;;; -*- mode: lisp; indent-tabs: nil -*-
-(defun make-requires ()
-  (asdf:oos 'asdf:load-op 'fiveam)
-  (asdf:oos 'asdf:load-op 'drakma)
-  (asdf:oos 'asdf:load-op 'cl-json))
-(make-requires)
-(defpackage :twitter
-  (:use :cl)
-  (:export :search
-           :trends
-           :trends-current
-           :trends-daily
-           :trends-weekly
-           :statuses-public-timeline
-           ))
 (in-package :twitter)
-
-;;; For my reference rather than anything else right now
-(defvar *exports*)
 
 (defun get-credentials (username password)
   (list username password))
@@ -121,10 +104,7 @@
 ;;; Search functions
 
 ;;; We want to match the URL name with the function name, which means
-;;; that we need to shadow CL:SEARCH. 
-(let ((scope (multiple-value-bind (_ s) (find-symbol "SEARCH" :twitter) s)))
-  ;; If we're going to have problems, the symbol scope will be :INHERITED.
-  (if (eq scope :INHERITED) (shadow "SEARCH" :twitter)))
+;;; that we need to shadow CL:SEARCH. This is done in packages.lisp.
 
 ;;; We can be called with all the usual twitter search parameters
 ;;; (except callback), and we return a list of alists.
