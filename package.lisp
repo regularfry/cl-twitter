@@ -7,4 +7,12 @@
            #:trends-current
            #:trends-daily
            #:trends-weekly
-           #:statuses-public-timeline))
+           #:statuses-public-timeline
+           #:statuses-friends-timeline
+           #:statuses-home-timeline
+           #:statuses-mentions
+           #:statuses-name-timeline
+           #:statuses-retweeted-by-me
+           #:statuses-retweeted-to-me
+           #:statuses-retweets-of-me
+           #:statuses-user-timeline))

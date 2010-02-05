@@ -1,61 +1,106 @@
 ;;; -*- mode: lisp; indent-tabs: nil -*-
 (in-package :twitter)
 
+
+;;; Useful tidbits from On Lisp
+(defun group (source n)
+  (if (zerop n) (error "zero length"))
+  (labels ((rec (source acc)
+             (let ((rest (nthcdr n source)))
+               (if (consp rest)
+                   (rec rest (cons (subseq source 0 n) acc))
+                   (nreverse (cons source acc))))))
+    (if source (rec source nil) nil)))
+
+(defun flatten (x)
+  (labels ((rec (x acc)
+             (cond ((null x) acc)
+                   ((atom x) (cons x acc))
+                   (t (rec (car x) (rec (cdr x) acc))))))
+    (rec x nil)))
+
+(defmacro abbrev (short long)
+  `(defmacro ,short (&rest args)
+     `(,',long ,@args)))
+
+(defmacro abbrevs (&rest names)
+  `(progn
+     ,@(mapcar #'(lambda (pair)
+                   `(abbrev ,@pair))
+               (group names 2))))
+
+;;; Shonky, but works for twitter urls (not google, though - look into this)
+(defmacro decode-http-request (method url &rest args)
+  `(flexi-streams:octets-to-string
+    (drakma:http-request ,url
+                         :method ,method
+                         ,@args)))
+
+(abbrevs dbind destructuring-bind
+         mvbind multiple-value-bind
+         http decode-http-request
+         dejson json:decode-json-from-string)
+
+
 (defun get-credentials (username password)
   (list username password))
 
-(defmacro get-http-string (url &optional credentials query-data)
-  `(flexi-streams:octets-to-string
-    (drakma:http-request ,url 
-			 ,@(if credentials 
-			       (list :basic-authorization credentials)
-			       () )
-                         ,@(if query-data
-                               (list :parameters query-data)) )))
 
-(defmacro post-http-data (url query-data &optional credentials)
-  `(flexi-streams:octets-to-string
-    (drakma:http-request ,url
-                         :method :post
-                         ,@(if credentials
-                               (list :basic-authorization credentials)
-                               ())
-                         ,@(if query-data
-                               (list :parameters query-data)
-                               ()))))
+(defun kif (key param) (if param (list key param)))
+;;; The idea here is basically to filter a list of key-value options
+;;; to only those with values
+(defun kifs (&rest options)
+  (apply #'append (mapcar #'(lambda (x) (apply #'kif x)) (group options 2))))
+
+(defmacro get-http-string (url &optional credentials query-data)
+  `(http :get ,url 
+         ,@(kifs :basic-authorization credentials
+                 :parameters query-data)))
+
+(defmacro post-http-data (url &optional credentials query-data)
+  `(http :post ,url
+         ,@(kifs :basic-authorization credentials
+                 :parameters query-data)))
 
 (defun get-data-from-json-url (credentials query-url &optional query-data)
-  (json:decode-json-from-string 
+  (dejson 
    (get-http-string query-url credentials query-data)))
 
 (defun post-data-to-json-url (credentials query-url &optional data-alist)
-  (json:decode-json-from-string
-   (post-http-data query-url data-alist credentials)))
+  (dejson
+   (post-http-data query-url credentials data-alist)))
 
 (defun get-timeline (credentials url)
-  (get-data-from-json-url url credentials))
+  (get-data-from-json-url credentials url))
+
+
+
+
+
 (defun statuses-public-timeline (&optional credentials)
   (get-timeline
    "http://twitter.com/statuses/public_timeline.json"
    credentials)) 
 
 (defvar *private-timeline-urls* 
-  '((friends . "http://twitter.com/statuses/friends_timeline.json")
-    (home . "http://api.twitter.com/1/statuses/home_timeline.json")
-    (user . "http://twitter.com/statuses/user_timeline.json")
-    (mentions . "http://twitter.com/statuses/mentions.json")
-    (retweeted-by-me . "http://api.twitter.com/1/statuses/retweeted_by_me.json")
-    (retweeted-to-me . "http://api.twitter.com/1/statuses/retweeted_to_me.json")
-    (retweets-of-me . "http://api.twitter.com/1/statuses/retweets_of_me.json")))
+  '((friends-timeline "http://twitter.com/statuses/friends_timeline.json")
+    (user-timeline    "http://twitter.com/statuses/user_timeline.json")
+    (mentions         "http://twitter.com/statuses/mentions.json")
+    (home-timeline    "http://api.twitter.com/1/statuses/home_timeline.json")
+    (retweeted-by-me  "http://api.twitter.com/1/statuses/retweeted_by_me.json")
+    (retweeted-to-me  "http://api.twitter.com/1/statuses/retweeted_to_me.json")
+    (retweets-of-me   "http://api.twitter.com/1/statuses/retweets_of_me.json")))
 
-(defun get-private-timeline-names ()
-  (mapcar 'car *private-timeline-urls*))
+(defun def-private-timeline (fname url)
+  (setf (symbol-function (intern (format nil "STATUSES-~a" fname) *package*))
+        #'(lambda (credentials) (get-timeline credentials url))))
 
-(defun get-private-timeline (credentials timeline-name)
-  (let ((timeline-pair (assoc timeline-name *private-timeline-urls*)))
-    (if timeline-pair
-        (get-timeline credentials (cdr timeline-pair))
-        ())))
+;;; Here we make all the timeline functions
+(dolist (pair *private-timeline-urls*)
+  (dbind (name url) pair
+    (def-private-timeline name url)))
+
+
 
 (defun restful-status-url (&optional op-name status-id)
   (if status-id
